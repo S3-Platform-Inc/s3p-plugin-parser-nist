@@ -3,7 +3,7 @@ import importlib.util
 import os
 from typing import Type
 import sys
-
+import logging.config
 import pytest
 from pathlib import Path
 
@@ -13,7 +13,7 @@ from selenium.webdriver import Chrome
 from selenium.webdriver.ie.webdriver import WebDriver
 
 from tests.config.fixtures import fix_plugin_config, project_config
-from tests.payload.fixtures import execute_timeout
+# from tests.payload.fixtures import execute_timeout
 from s3p_sdk.types import S3PRefer, S3PDocument
 from s3p_sdk.plugin.types import SOURCE
 
@@ -21,11 +21,17 @@ from s3p_sdk.plugin.types import SOURCE
 @pytest.mark.payload_set
 class TestPayloadRun:
 
+    # IT NEWS: https://www.nist.gov/news-events/news/search?key=&topic-op=or&topic-area-fieldset%5B%5D=249421
+    # IT PUBLICATIONS: https://www.nist.gov/publications/search?k=&t=&a=&ps=All&ta%5B%5D=249421&n=&d%5Bmin%5D=&d%5Bmax%5D=
+
+    # url_pubs = "https://www.nist.gov/publications/search?k=&t=&a=&ps=All&ta%5B%5D=249421&n=&d%5Bmin%5D=&d%5Bmax%5D="
+    # url_news = "https://www.nist.gov/news-events/news/search?key=&topic-op=or&topic-area-fieldset%5B%5D=249421"
+
     @pytest.fixture(scope="class", autouse=True)
     def chrome_driver(self) -> WebDriver:
         options = webdriver.Options()
 
-        options.add_argument('--headless')
+        # options.add_argument('--headless')
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('window-size=1920x1080')
@@ -59,17 +65,23 @@ class TestPayloadRun:
     def run_payload(self, payload: Type[S3PParserBase], driver: WebDriver, refer: S3PRefer, max_document: int,
                     timeout: int = 2):
         # !WARNING Требуется изменить путь до актуального парсера плагина
-        from src.s3_platform_plugin_template.template_payload import MyTemplateParser
-        if isinstance(payload, type(MyTemplateParser)):
-            _payload = payload(refer=refer, web_driver=driver, max_count_documents=max_document, last_document=None)
+        from src.s3p_plugin_parser_nist.nist import NIST
+        logging.config.fileConfig(r"C:\Users\Artyom\Downloads\Проверка плагинов\s3p_plugin_parser_nist\tests\dev.logger.conf")
+        url_pubs = "https://www.nist.gov/publications/search?k=&t=&a=&ps=All&ta%5B%5D=249421&n=&d%5Bmin%5D=&d%5Bmax%5D="
+        url_news = "https://www.nist.gov/news-events/news/search?key=&topic-op=or&topic-area-fieldset%5B%5D=249421"
 
-            @execute_timeout(timeout)
+        if isinstance(payload, type(NIST)):
+            _payload = payload(refer=refer, web_driver=driver, max_count_documents=max_document, last_document=None,
+                               url = url_pubs)
+
+            # @execute_timeout(timeout)
             def execute() -> tuple[S3PDocument, ...]:
                 return _payload.content()
 
             return execute()
         else:
             assert False, "Тест проверяет payload плагина"
+
 
     def test_run_with_0_docs_restriction(self, chrome_driver, fix_s3pRefer, fix_payload):
         # !WARNING Обновить тест для актуального парсера
